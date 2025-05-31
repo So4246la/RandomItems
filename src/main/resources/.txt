@@ -1,0 +1,6 @@
+# RandomItemGiver の初期設定
+# 以下の設定は、プラグイン起動時に読み込まれます。
+
+# spawnRange: ランダムスポーンの範囲（ワールド座標の±範囲）
+spawnRange: 10000
+

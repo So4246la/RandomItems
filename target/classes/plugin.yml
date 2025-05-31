@@ -1,0 +1,5 @@
+name: RandomItemGiver
+main: com.example.randomitem.RandomItemGiver
+version: 1.0
+api-version: 1.20
+description: "初回参加およびリスポーン時にランダムアイテムを付与するプラグイン"
