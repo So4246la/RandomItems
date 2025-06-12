@@ -70,14 +70,16 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
 
-        if (!player.hasPlayedBefore()) {
-            // 新規ユーザー処理
-            player.getScheduler().runDelayed(this, scheduledTask -> {
-                // 今のゲームモードがサバイバルならアイテム付与
-                if (player.getGameMode() == GameMode.SURVIVAL) {
-                    giveRandomSpawnItem(player);
-                }
-            }, null, 1L);
+        if (isFolia) {
+            if (!player.hasPlayedBefore()) {
+                // 新規ユーザー処理
+                player.getScheduler().runDelayed(this, scheduledTask -> {
+                    // 今のゲームモードがサバイバルならアイテム付与
+                    if (player.getGameMode() == GameMode.SURVIVAL) {
+                        giveRandomSpawnItem(player);
+                    }
+                }, null, 1L);
+            }
         }
 
         // まだ当日ログインボーナスを受け取っていない場合のみ付与
@@ -107,26 +109,6 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
             }
         }, null, 1L);
     }
-
-    // @EventHandler
-    // public void onPlayerRespawn(PlayerRespawnEvent event) {
-    //     Player player = event.getPlayer();
-
-    //     // // 少し遅延(2tick)を入れる ・・・観戦/サバイバル切り替えが完了してから判定
-    //     // getServer().getScheduler().runTaskLater(this, () -> {
-    //     //     // 今のゲームモードがサバイバルならアイテム付与
-    //     //     if (player.getGameMode() == GameMode.SURVIVAL) {
-    //     //         giveRandomSpawnItem(player);
-    //     //     }
-    //     // }, 1L);
-
-    //     player.getScheduler().runDelayed(this, scheduledTask -> {
-    //         // 今のゲームモードがサバイバルならアイテム付与
-    //         if (player.getGameMode() == GameMode.SURVIVAL) {
-    //             giveRandomSpawnItem(player);
-    //         }
-    //     }, null, 1L);
-    // }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerDeath(PlayerDeathEvent event) {
