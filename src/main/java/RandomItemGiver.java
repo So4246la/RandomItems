@@ -23,6 +23,7 @@ import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionType;
 import org.bukkit.potion.PotionData;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
+import org.bukkit.Registry;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.Random;
 import java.time.LocalDate;
+import net.kyori.adventure.text.Component;
 
 public class RandomItemGiver extends JavaPlugin implements Listener {
 
@@ -298,7 +300,7 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
                     if (player.getGameMode() == GameMode.SURVIVAL) {
                         giveRandomSpawnItem(player);
                     }
-                }, null, 1L);
+                }, null, 2L);
             }
         }
 
@@ -308,8 +310,22 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
 
         // まだ当日ログインボーナスを受け取っていない場合のみ付与
         if (lastReward == null || lastReward.isBefore(today)) {
-            giveRandomSpawnItem(player);
-            lastDailyReward.put(uuid, today);
+            // 2ティック遅らせてアイテムを付与する
+            if (isFolia) {
+                player.getScheduler().runDelayed(this, scheduledTask -> {
+                    if (player.getGameMode() == GameMode.SURVIVAL) {
+                        giveRandomSpawnItem(player);
+                        lastDailyReward.put(uuid, today);
+                    }
+                }, null, 2L);
+            } else {
+                getServer().getScheduler().runTaskLater(this, () -> {
+                    if (player.getGameMode() == GameMode.SURVIVAL) {
+                        giveRandomSpawnItem(player);
+                        lastDailyReward.put(uuid, today);
+                    }
+                }, 2L);
+            }
         }
     }
 
@@ -331,7 +347,7 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
             if (player.getGameMode() == GameMode.SURVIVAL) {
                 giveRandomSpawnItem(player);
             }
-        }, null, 1L);
+        }, null, 2L);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -349,7 +365,7 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
                     giveRandomSpawnItem(player);
                 }
             }
-        }, null, 50L); // 2.5秒後に実行
+        }, null, 20L); // 1秒後に実行
     }
 
     @EventHandler
@@ -359,8 +375,21 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
             return;
         }
 
-        // レシピ以外の純粋な実績解除時だけアイテムを付与
-        giveRandomSpawnItem(event.getPlayer());
+        Player player = event.getPlayer();
+        // 2ティック遅らせてアイテムを付与する
+        if (isFolia) {
+            player.getScheduler().runDelayed(this, scheduledTask -> {
+                if (player.getGameMode() == GameMode.SURVIVAL) {
+                    giveRandomSpawnItem(player);
+                }
+            }, null, 2L);
+        } else {
+            getServer().getScheduler().runTaskLater(this, () -> {
+                if (player.getGameMode() == GameMode.SURVIVAL) {
+                    giveRandomSpawnItem(player);
+                }
+            }, 2L);
+        }
     }
 
     /**
@@ -413,11 +442,9 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
             // ポーションの場合、PotionDataを明示的に設定
             if (type == Material.POTION || type == Material.SPLASH_POTION || type == Material.LINGERING_POTION) {
                 PotionMeta potionMeta = (PotionMeta) itemStack.getItemMeta();
-
-                // ベースのポーションタイプをランダムで設定
-                PotionType potionType = getRandomCraftablePotionType();
-                potionMeta.setBasePotionData(new PotionData(potionType));
-
+                PotionEffectType effectType = getRandomPotionEffectType();
+                // 効果時間とレベルを適切に設定 (例: 5分、レベル1)
+                potionMeta.addCustomEffect(new PotionEffect(effectType, 6000, 0), true);
                 itemStack.setItemMeta(potionMeta);
             }
 
@@ -429,27 +456,26 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
                 player.getWorld().dropItemNaturally(player.getLocation(), itemStack);
                 broadcastItemReceiveInventoryFull(player, selected);
             }
-        } // ← この波括弧はメソッドgiveRandomSpawnItemの閉じ
+        }
     }
 
+    @SuppressWarnings("deprecation")
     private void broadcastItemReceive(Player player, Material item) {
         String message = "§a" + player.getName() + "がランダムアイテム「" + item.name() + "」を受け取りました！";
-        for (Player onlinePlayer : getServer().getOnlinePlayers()) {
-            onlinePlayer.sendMessage(message);
-        }
+        getServer().broadcastMessage(message);
     }
 
+    @SuppressWarnings("deprecation")
     private void broadcastItemReceiveInventoryFull(Player player, Material item) {
         String message = "§e" + player.getName() + "がランダムアイテム「" + item.name() + "」を受け取りましたが、インベントリが一杯だったため地面にドロップしました！";
-        for (Player onlinePlayer : getServer().getOnlinePlayers()) {
-            onlinePlayer.sendMessage(message);
-        }
+        getServer().broadcastMessage(message);
     }
 
     // このメソッドは現在使用されていないため、削除またはコメントアウトを検討
     // private boolean isCraftablePotion(PotionType type) { ... }
 
     // サバイバルモードで入手可能なエンチャントをランダムに選択するメソッド
+    @SuppressWarnings("deprecation")
     private Enchantment getRandomEnchantmentForItem(Material material) {
         List<Enchantment> validEnchantments = new ArrayList<>();
         for (Enchantment enchantment : Enchantment.values()) {
@@ -464,6 +490,7 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
     }
 
     // サバイバルモードで入手可能な全てのエンチャントからランダムに一つ取得
+    @SuppressWarnings("deprecation")
     private Enchantment getRandomEnchantment() {
         List<Enchantment> validEnchantments = new ArrayList<>();
         for (Enchantment enchantment : Enchantment.values()) {
@@ -477,24 +504,24 @@ public class RandomItemGiver extends JavaPlugin implements Listener {
         return validEnchantments.get(random.nextInt(validEnchantments.size()));
     }
 
-    // ランダムでクラフト可能なPotionTypeを取得
-    private PotionType getRandomCraftablePotionType() {
-        PotionType[] craftableTypes = {
-                PotionType.FIRE_RESISTANCE,
-                PotionType.HARMING,
-                PotionType.HEALING,
-                PotionType.INVISIBILITY,
-                PotionType.LEAPING,
-                PotionType.NIGHT_VISION,
-                PotionType.POISON,
-                PotionType.REGENERATION,
-                PotionType.SLOW_FALLING,
-                PotionType.SLOWNESS,
-                PotionType.STRENGTH,
-                PotionType.SWIFTNESS,
-                PotionType.WATER_BREATHING,
-                PotionType.WEAKNESS,
-                PotionType.TURTLE_MASTER
+    // ランダムでクラフト可能なPotionEffectTypeを取得
+    private PotionEffectType getRandomPotionEffectType() {
+        PotionEffectType[] craftableTypes = {
+                PotionEffectType.FIRE_RESISTANCE,
+                PotionEffectType.INSTANT_DAMAGE,
+                PotionEffectType.INSTANT_HEALTH,
+                PotionEffectType.INVISIBILITY,
+                PotionEffectType.JUMP_BOOST,
+                PotionEffectType.NIGHT_VISION,
+                PotionEffectType.POISON,
+                PotionEffectType.REGENERATION,
+                PotionEffectType.SLOW_FALLING,
+                PotionEffectType.SLOWNESS,
+                PotionEffectType.STRENGTH,
+                PotionEffectType.SPEED,
+                PotionEffectType.WATER_BREATHING,
+                PotionEffectType.WEAKNESS,
+                PotionEffectType.RESISTANCE // Turtle Masterの代わり (DAMAGE_RESISTANCE -> RESISTANCE)
         };
         return craftableTypes[random.nextInt(craftableTypes.length)];
     }
