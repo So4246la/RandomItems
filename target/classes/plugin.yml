@@ -4,3 +4,5 @@ version: 1.0
 api-version: 1.21
 description: "初回参加およびリスポーン時にランダムアイテムを付与するプラグイン"
 folia-supported: true
+softdepend: # Or, use 'depend' here
+  - HuskSync
